@@ -1,0 +1,114 @@
+.pglite-data/
+.devpglite/
+.test-dist/
+*.tgz
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Java
+*.class
+*.jar
+*.war
+.gradle/
+target/
+out/
+
+# Node.js
+node_modules/
+.npm/
+.next/
+.nuxt/
+.turbo/
+
+# Prisma generated client
+**/generated/prisma/
+
+# Local SQLite databases (including Prisma and Drizzle projects)
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Build output and logs
+build/
+dist/
+coverage/
+logs/
+*.log
+
+# Local editor and IDE settings
+.vscode/
+*.code-workspace
+.idea/
+*.iml
+
+# AI assistants and agents
+.agents/
+AGENTS.md
+.claude/
+CLAUDE.md
+.codex/
+.cursor/
+.windsurf/
+.continue/
+.gemini/
+GEMINI.md
+.aider*
+.opencode/
+.roo/
+.kilocode/
+.github/copilot-instructions.md
+.github/instructions/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Spring Boot and Java IDE rules
+HELP.md
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+!**/src/main/**/build/
+!**/src/test/**/build/

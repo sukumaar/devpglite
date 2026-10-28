@@ -1,0 +1,37 @@
+{
+  "name": "devpglite",
+  "version": "0.1.0",
+  "description": "A minimal persistent PGlite PostgreSQL-compatible server for local development",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "devpglite": "dist/cli.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "db": "npm start --",
+    "prestart": "npm run build",
+    "start": "node --env-file=.env.development dist/cli.js start",
+    "pretest": "npm run build && tsc --project tsconfig.test.json",
+    "test": "node --test --test-isolation=none .test-dist/test/*.test.js",
+    "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; for (const dir of ['dist', '.test-dist']) rmSync(dir, { recursive: true, force: true });\" && tsc",
+    "typecheck": "tsc --noEmit --project tsconfig.test.json",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.12",
+    "@electric-sql/pglite-socket": "0.2.15",
+    "signale": "1.4.0",
+    "yargs": "18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/signale": "^1.4.7",
+    "@types/yargs": "^17.0.35",
+    "typescript": "5.9.3"
+  }
+}
