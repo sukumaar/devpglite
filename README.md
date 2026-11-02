@@ -1,5 +1,8 @@
 # devpglite
 
+[![Build and publish](https://github.com/sukumaar/devpglite/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/sukumaar/devpglite/actions/workflows/npm-publish.yml)
+[![npm version](https://img.shields.io/npm/v/devpglite)](https://www.npmjs.com/package/devpglite)
+
 A local PostgreSQL-compatible database for development and tests, powered by
 [PGlite](https://github.com/electric-sql/pglite). The goal is to let apps connect through a database URL without installing
 PostgreSQL or running Docker.
