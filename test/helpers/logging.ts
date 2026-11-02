@@ -5,11 +5,11 @@ import { LOG_LEVELS } from '../constants.js';
 
 // Capture messages without terminal formatting; the test runner restores each method.
 export function captureLogs(context: TestContext) {
-  const messages: string[] = [];
+  const logMessages: string[] = [];
   for (const level of LOG_LEVELS) {
     context.mock.method(logger, level, (...args: unknown[]) => {
-      messages.push(format(...args));
+      logMessages.push(format(...args));
     });
   }
-  return messages;
+  return logMessages;
 }

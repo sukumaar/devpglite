@@ -16,22 +16,22 @@ describe('database storage settings', () => {
   });
 
   it('uses the same default after changing folders', (context) => {
-    const env = createTestEnvironment(context);
+    const testEnvironment = createTestEnvironment(context);
     process.env.PGLITE_DATA_DIR = '';
-    const expected = join(homedir(), TEST_CONFIG.dataDirectory);
-    assert.equal(readConfig().dataDir, expected);
+    const expectedDatabaseDirectory = join(homedir(), TEST_CONFIG.dataDirectory);
+    assert.equal(readConfig().dataDir, expectedDatabaseDirectory);
 
-    const folder = join(env.directory, 'another-folder');
-    mkdirSync(folder);
-    process.chdir(folder);
-    assert.equal(readConfig().dataDir, expected);
+    const alternateDirectory = join(testEnvironment.temporaryDirectory, TEST_CONFIG.alternateDirectory);
+    mkdirSync(alternateDirectory);
+    process.chdir(alternateDirectory);
+    assert.equal(readConfig().dataDir, expectedDatabaseDirectory);
   });
 
   it('resolves an explicit relative path from the working directory', (context) => {
-    const env = createTestEnvironment(context);
+    const testEnvironment = createTestEnvironment(context);
     process.env.PGLITE_DATA_DIR = `./${TEST_CONFIG.dataDirectory}`;
 
-    assert.equal(readConfig().dataDir, env.dataDir);
+    assert.equal(readConfig().dataDir, testEnvironment.databaseDirectory);
   });
 });
 
@@ -50,10 +50,10 @@ describe('client connection limits', () => {
     assert.equal(readConfig().maxConnections, 1);
   });
 
-  for (const value of INVALID_CONNECTION_LIMITS) {
-    it(`rejects connection limit ${value}`, (context) => {
+  for (const invalidConnectionLimit of INVALID_CONNECTION_LIMITS) {
+    it(`rejects connection limit ${invalidConnectionLimit}`, (context) => {
       createTestEnvironment(context);
-      process.env.MAX_CONNECTIONS = value;
+      process.env.MAX_CONNECTIONS = invalidConnectionLimit;
       assert.throws(() => readConfig(), /MAX_CONNECTIONS must/);
     });
   }

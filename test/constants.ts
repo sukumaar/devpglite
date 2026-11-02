@@ -11,12 +11,19 @@ export const TEST_CONFIG = {
   initialSqlFile: 'initial.sql',
   databaseVersionFile: 'PG_VERSION',
   databaseVersion: '17',
+  alternateDirectory: 'another-folder',
+  databaseSymlink: 'db-link',
+  missingSqlFile: 'missing.sql',
+  preservedFile: 'keep',
+  preservedContent: 'keep me',
+  extraFile: 'extra-file',
+  extraContent: 'remove me',
 } as const;
 
 export const TEST_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 export const INVALID_CONNECTION_LIMITS = ['0', '-1', '1.5', 'invalid', 'Infinity', '9007199254740992'];
 export type TestSignal = typeof TEST_SIGNALS[number];
-export const LOG_LEVELS = ['start', 'info', 'tip', 'await', 'success', 'warn', 'error'] as const;
+export const LOG_LEVELS = ['start', 'info', 'await', 'success', 'warn', 'error'] as const;
 export const TEST_CLIENTS = [
   { clientAddress: '127.0.0.1', clientPort: 45001, endpoint: '127.0.0.1:45001' },
   { clientAddress: '::1', clientPort: 45002, endpoint: '[::1]:45002' },

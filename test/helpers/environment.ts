@@ -3,60 +3,59 @@ import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestContext } from 'node:test';
-import { PGLiteSocketServer } from './socket-server.js';
+import { PGLiteSocketServer as FakeSocketServer } from './socket-server.js';
 import { INITIAL_SQL, TEST_CONFIG, TEST_SIGNALS, type TestSignal } from '../constants.js';
 
 // Give each test its own files and settings, then restore the process afterward.
 // Tests run sequentially because the CLI reads process-wide settings.
-export class TestEnvironment {
-  readonly directory = mkdtempSync(join(tmpdir(), TEST_CONFIG.directoryPrefix));
-  readonly dataDir = join(this.directory, TEST_CONFIG.dataDirectory);
-  private readonly previousCwd = process.cwd();
-  private readonly previousEnv = { ...process.env };
-  private readonly previousListeners = new Set(TEST_SIGNALS.flatMap((signal) => process.listeners(signal)));
-  private readonly hooks: ReturnType<typeof registerHooks>;
+class TestEnvironment {
+  readonly temporaryDirectory = mkdtempSync(join(tmpdir(), TEST_CONFIG.directoryPrefix));
+  readonly databaseDirectory = join(this.temporaryDirectory, TEST_CONFIG.dataDirectory);
+  private readonly originalWorkingDirectory = process.cwd();
+  private readonly originalEnvironmentVariables = { ...process.env };
+  private readonly originalSignalListeners = new Set(TEST_SIGNALS.flatMap((signal) => process.listeners(signal)));
+  private readonly socketModuleHook: ReturnType<typeof registerHooks>;
 
   // Replace only the TCP listener; database operations still run against PGlite.
   constructor() {
-    const socketModule = new URL('./socket-server.js', import.meta.url).href;
-    this.hooks = registerHooks({
-      resolve(specifier, context, next) {
-        if (specifier === '@electric-sql/pglite-socket') {
-          return { shortCircuit: true, url: socketModule };
+    const fakeSocketModuleUrl = new URL('./socket-server.js', import.meta.url).href;
+    this.socketModuleHook = registerHooks({
+      resolve(moduleName, context, resolveNormally) {
+        if (moduleName === '@electric-sql/pglite-socket') {
+          return { shortCircuit: true, url: fakeSocketModuleUrl };
         }
-        return next(specifier, context);
+        return resolveNormally(moduleName, context);
       },
     });
-    PGLiteSocketServer.current = undefined;
-    process.chdir(this.directory);
+    FakeSocketServer.latestInstance = undefined;
+    process.chdir(this.temporaryDirectory);
     process.env.PORT = '';
     process.env.MAX_CONNECTIONS = '';
-    process.env.PGLITE_DATA_DIR = this.dataDir;
+    process.env.PGLITE_DATA_DIR = this.databaseDirectory;
   }
 
-  get server() {
-    if (!PGLiteSocketServer.current) throw new Error('The test has not started a server.');
-    return PGLiteSocketServer.current;
+  get socketServer() {
+    if (!FakeSocketServer.latestInstance) throw new Error('The test has not started a server.');
+    return FakeSocketServer.latestInstance;
   }
 
   // Keep parser failures in the test instead of letting yargs exit the process.
-  private async parser(args: string[]) {
+  private async createCommandParser(commandArguments: string[]) {
+    // Import after installing the hook so startup uses the fake TCP server.
     const { createCli } = await import('../../src/cli.js');
-    return createCli(args).exitProcess(false).showHelpOnFail(false).fail((message, error) => {
-      throw error ?? new Error(message);
-    });
+    return createCli(commandArguments).exitProcess(false).showHelpOnFail(false);
   }
 
-  async run(args: string[]) {
-    const cli = await this.parser(args);
+  async runCommand(commandArguments: string[]) {
+    const cli = await this.createCommandParser(commandArguments);
     await cli.parseAsync();
   }
 
   // Capture help and version output without intercepting console.log.
-  async output(args: string[]) {
-    const cli = await this.parser(args);
+  async readCommandOutput(commandArguments: string[]) {
+    const cli = await this.createCommandParser(commandArguments);
     let output = '';
-    await cli.parseAsync(args, {}, (error, _args, text) => {
+    await cli.parseAsync(commandArguments, {}, (error, _args, text) => {
       if (error) throw error;
       output = text;
     });
@@ -64,48 +63,48 @@ export class TestEnvironment {
   }
 
   // Reset settings on every start so restarts cannot inherit a previous override.
-  async start(args: string[] = [], env: NodeJS.ProcessEnv = {}) {
-    Object.assign(process.env, { PORT: '', MAX_CONNECTIONS: '', PGLITE_DATA_DIR: this.dataDir }, env);
-    await this.run(['start', ...args]);
-    return this.server.options.db;
+  async startServer(commandArguments: string[] = [], environmentOverrides: NodeJS.ProcessEnv = {}) {
+    Object.assign(process.env, { PORT: '', MAX_CONNECTIONS: '', PGLITE_DATA_DIR: this.databaseDirectory }, environmentOverrides);
+    await this.runCommand(['start', ...commandArguments]);
+    return this.socketServer.options.db;
   }
 
-  writeSql(sql = INITIAL_SQL) {
-    const file = join(this.directory, TEST_CONFIG.initialSqlFile);
-    writeFileSync(file, sql);
-    return file;
+  writeSqlFile(sql = INITIAL_SQL) {
+    const sqlFilePath = join(this.temporaryDirectory, TEST_CONFIG.initialSqlFile);
+    writeFileSync(sqlFilePath, sql);
+    return sqlFilePath;
   }
 
   // Call only the application's handler; emitting SIGTERM would also stop the test runner.
-  async stop(signal: TestSignal = 'SIGTERM') {
-    if (this.server.options.db.closed) return;
-    const handler = process.listeners(signal).find((listener) => !this.previousListeners.has(listener));
-    if (!handler) throw new Error(`No application handler registered for ${signal}.`);
-    await handler(signal);
+  async stopServer(signal: TestSignal = 'SIGTERM') {
+    if (this.socketServer.options.db.closed) return;
+    const shutdownHandler = process.listeners(signal).find((listener) => !this.originalSignalListeners.has(listener));
+    if (!shutdownHandler) throw new Error(`No application handler registered for ${signal}.`);
+    await shutdownHandler(signal);
   }
 
   // Restore files, settings, and listeners even when a test fails.
   async cleanup() {
     try {
-      if (PGLiteSocketServer.current) await this.stop();
+      if (FakeSocketServer.latestInstance) await this.stopServer();
     } finally {
       for (const signal of TEST_SIGNALS) {
         for (const listener of process.listeners(signal)) {
-          if (!this.previousListeners.has(listener)) process.removeListener(signal, listener);
+          if (!this.originalSignalListeners.has(listener)) process.removeListener(signal, listener);
         }
       }
-      this.hooks.deregister();
-      process.chdir(this.previousCwd);
-      process.env = this.previousEnv;
-      PGLiteSocketServer.current = undefined;
-      rmSync(this.directory, { recursive: true, force: true });
+      this.socketModuleHook.deregister();
+      process.chdir(this.originalWorkingDirectory);
+      process.env = this.originalEnvironmentVariables;
+      FakeSocketServer.latestInstance = undefined;
+      rmSync(this.temporaryDirectory, { recursive: true, force: true });
     }
   }
 }
 
 // Keep setup local to each test and guarantee cleanup when it finishes.
 export function createTestEnvironment(context: TestContext) {
-  const env = new TestEnvironment();
-  context.after(async () => { await env.cleanup(); });
-  return env;
+  const testEnvironment = new TestEnvironment();
+  context.after(() => testEnvironment.cleanup());
+  return testEnvironment;
 }

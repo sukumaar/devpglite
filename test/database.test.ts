@@ -8,38 +8,38 @@ import { TEST_CONFIG } from './constants.js';
 
 describe('database directory cleanup', () => {
   it('refuses to delete the current working directory', async (context) => {
-    const env = createTestEnvironment(context);
-    await assert.rejects(cleanDatabaseDirectory(env.directory), /protected directory/);
-    assert.equal(existsSync(env.directory), true);
+    const testEnvironment = createTestEnvironment(context);
+    await assert.rejects(cleanDatabaseDirectory(testEnvironment.temporaryDirectory), /protected directory/);
+    assert.equal(existsSync(testEnvironment.temporaryDirectory), true);
   });
 
   it('preserves unrelated nonempty directories', async (context) => {
-    const env = createTestEnvironment(context);
-    mkdirSync(env.dataDir);
-    const file = join(env.dataDir, 'keep');
-    writeFileSync(file, 'keep me');
+    const testEnvironment = createTestEnvironment(context);
+    mkdirSync(testEnvironment.databaseDirectory);
+    const preservedFilePath = join(testEnvironment.databaseDirectory, TEST_CONFIG.preservedFile);
+    writeFileSync(preservedFilePath, TEST_CONFIG.preservedContent);
 
-    await assert.rejects(cleanDatabaseDirectory(env.dataDir), /nonempty directory/);
-    assert.equal(readFileSync(file, 'utf8'), 'keep me');
+    await assert.rejects(cleanDatabaseDirectory(testEnvironment.databaseDirectory), /nonempty directory/);
+    assert.equal(readFileSync(preservedFilePath, 'utf8'), TEST_CONFIG.preservedContent);
   });
 
   it('refuses to follow a symlink to a database directory', async (context) => {
-    const env = createTestEnvironment(context);
-    mkdirSync(env.dataDir);
-    const marker = join(env.dataDir, TEST_CONFIG.databaseVersionFile);
-    writeFileSync(marker, TEST_CONFIG.databaseVersion);
-    const link = join(env.directory, 'db-link');
-    symlinkSync(env.dataDir, link, 'dir');
+    const testEnvironment = createTestEnvironment(context);
+    mkdirSync(testEnvironment.databaseDirectory);
+    const databaseVersionFilePath = join(testEnvironment.databaseDirectory, TEST_CONFIG.databaseVersionFile);
+    writeFileSync(databaseVersionFilePath, TEST_CONFIG.databaseVersion);
+    const databaseSymlinkPath = join(testEnvironment.temporaryDirectory, TEST_CONFIG.databaseSymlink);
+    symlinkSync(testEnvironment.databaseDirectory, databaseSymlinkPath, 'dir');
 
-    await assert.rejects(cleanDatabaseDirectory(link), /symlink/);
-    assert.equal(existsSync(marker), true);
+    await assert.rejects(cleanDatabaseDirectory(databaseSymlinkPath), /symlink/);
+    assert.equal(existsSync(databaseVersionFilePath), true);
   });
 
   it('allows missing and empty data directories', async (context) => {
-    const env = createTestEnvironment(context);
-    await cleanDatabaseDirectory(env.dataDir);
-    mkdirSync(env.dataDir);
-    await cleanDatabaseDirectory(env.dataDir);
-    assert.equal(existsSync(env.dataDir), false);
+    const testEnvironment = createTestEnvironment(context);
+    await cleanDatabaseDirectory(testEnvironment.databaseDirectory);
+    mkdirSync(testEnvironment.databaseDirectory);
+    await cleanDatabaseDirectory(testEnvironment.databaseDirectory);
+    assert.equal(existsSync(testEnvironment.databaseDirectory), false);
   });
 });

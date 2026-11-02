@@ -3,118 +3,144 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { createTestEnvironment } from './helpers/environment.js';
-import { INITIAL_USERS, INVALID_SQL, QUERIES, REPLACEMENT_SQL, REPLACEMENT_USERS, TEST_CONFIG, TEST_SIGNALS } from './constants.js';
+import { captureLogs } from './helpers/logging.js';
+import { INITIAL_SQL, INITIAL_USERS, INVALID_SQL, QUERIES, REPLACEMENT_SQL, REPLACEMENT_USERS, TEST_CONFIG, TEST_SIGNALS } from './constants.js';
 
 describe('database server', () => {
   it('uses localhost and the default port', async (context) => {
-    const env = createTestEnvironment(context);
-    const db = await env.start();
-    assert.equal(env.server.options.host, TEST_CONFIG.host);
-    assert.equal(env.server.options.port, TEST_CONFIG.defaultPort);
-    assert.equal(env.server.options.maxConnections, TEST_CONFIG.defaultMaxConnections);
-    assert.equal(db.dataDir, env.dataDir);
+    const testEnvironment = createTestEnvironment(context);
+    const database = await testEnvironment.startServer();
+    assert.equal(testEnvironment.socketServer.options.host, TEST_CONFIG.host);
+    assert.equal(testEnvironment.socketServer.options.port, TEST_CONFIG.defaultPort);
+    assert.equal(testEnvironment.socketServer.options.maxConnections, TEST_CONFIG.defaultMaxConnections);
+    assert.equal(database.dataDir, testEnvironment.databaseDirectory);
   });
 
   it('reads the port and data directory from the environment', async (context) => {
-    const env = createTestEnvironment(context);
-    const dataDir = join(env.directory, TEST_CONFIG.customDataDirectory);
-    const db = await env.start([], {
+    const testEnvironment = createTestEnvironment(context);
+    const customDatabaseDirectory = join(testEnvironment.temporaryDirectory, TEST_CONFIG.customDataDirectory);
+    const database = await testEnvironment.startServer([], {
       PORT: String(TEST_CONFIG.customPort),
-      PGLITE_DATA_DIR: dataDir,
+      PGLITE_DATA_DIR: customDatabaseDirectory,
       MAX_CONNECTIONS: String(TEST_CONFIG.customMaxConnections),
     });
-    assert.equal(env.server.options.port, TEST_CONFIG.customPort);
-    assert.equal(env.server.options.maxConnections, TEST_CONFIG.customMaxConnections);
-    assert.equal(db.dataDir, dataDir);
+    assert.equal(testEnvironment.socketServer.options.port, TEST_CONFIG.customPort);
+    assert.equal(testEnvironment.socketServer.options.maxConnections, TEST_CONFIG.customMaxConnections);
+    assert.equal(database.dataDir, customDatabaseDirectory);
   });
 
-  it('loads initial data before starting', async (context) => {
-    const env = createTestEnvironment(context);
-    const file = env.writeSql();
-    const db = await env.start(['--init', file]);
-    assert.deepEqual((await db.query(QUERIES.users)).rows, INITIAL_USERS);
+  it('loads initial data and logs startup and shutdown', async (context) => {
+    const testEnvironment = createTestEnvironment(context);
+    const logMessages = captureLogs(context);
+    const sqlFilePath = testEnvironment.writeSqlFile();
+    const database = await testEnvironment.startServer(['--init', sqlFilePath]);
+    const users = await database.query(QUERIES.users);
+    assert.deepEqual(users.rows, INITIAL_USERS);
+    await testEnvironment.stopServer();
+
+    const output = logMessages.join('\n');
+    assert.ok(output.includes(testEnvironment.databaseDirectory));
+    assert.ok(output.includes(sqlFilePath));
+    assert.match(output, /Initial data loaded/);
+    assert.ok(output.includes(`postgresql://postgres:postgres@${TEST_CONFIG.host}:${TEST_CONFIG.defaultPort}/postgres?sslmode=disable`));
+    assert.match(output, /Server stopped and database closed/);
+    assert.equal(output.includes(INITIAL_SQL), false);
   });
 
   it('keeps existing data and skips initial SQL on restart', async (context) => {
-    const env = createTestEnvironment(context);
-    const file = env.writeSql();
-    await env.start(['--init', file]);
-    await env.stop();
+    const testEnvironment = createTestEnvironment(context);
+    const logMessages = captureLogs(context);
+    const sqlFilePath = testEnvironment.writeSqlFile();
+    await testEnvironment.startServer(['--init', sqlFilePath]);
+    await testEnvironment.stopServer();
 
-    const db = await env.start(['--init', file]);
-    assert.deepEqual((await db.query(QUERIES.users)).rows, INITIAL_USERS);
+    const database = await testEnvironment.startServer(['--init', sqlFilePath]);
+    const users = await database.query(QUERIES.users);
+    assert.deepEqual(users.rows, INITIAL_USERS);
+    const output = logMessages.join('\n');
+    assert.match(output, /Opening the existing database/);
+    assert.match(output, /skipping initial SQL/);
   });
 
   it('removes old files and reloads initial data with --clean', async (context) => {
-    const env = createTestEnvironment(context);
-    const file = env.writeSql();
-    await env.start(['--init', file]);
-    await env.stop();
-    const marker = join(env.dataDir, 'extra-file');
-    writeFileSync(marker, 'remove me');
-    env.writeSql(REPLACEMENT_SQL);
+    const testEnvironment = createTestEnvironment(context);
+    const logMessages = captureLogs(context);
+    const sqlFilePath = testEnvironment.writeSqlFile();
+    await testEnvironment.startServer(['--init', sqlFilePath]);
+    await testEnvironment.stopServer();
+    const extraFilePath = join(testEnvironment.databaseDirectory, TEST_CONFIG.extraFile);
+    writeFileSync(extraFilePath, TEST_CONFIG.extraContent);
+    testEnvironment.writeSqlFile(REPLACEMENT_SQL);
 
-    const db = await env.start(['--clean', '--init', file]);
-    assert.equal(existsSync(marker), false);
-    assert.deepEqual((await db.query(QUERIES.users)).rows, REPLACEMENT_USERS);
+    const database = await testEnvironment.startServer(['--clean', '--init', sqlFilePath]);
+    assert.equal(existsSync(extraFilePath), false);
+    const users = await database.query(QUERIES.users);
+    assert.deepEqual(users.rows, REPLACEMENT_USERS);
+    const output = logMessages.join('\n');
+    assert.ok(output.includes(`Deleting all data in ${testEnvironment.databaseDirectory}`));
+    assert.match(output, /Previous database files removed/);
   });
 
   it('starts without old tables when --clean has no initial SQL', async (context) => {
-    const env = createTestEnvironment(context);
-    await env.start(['--init', env.writeSql()]);
-    await env.stop();
+    const testEnvironment = createTestEnvironment(context);
+    await testEnvironment.startServer(['--init', testEnvironment.writeSqlFile()]);
+    await testEnvironment.stopServer();
 
-    const db = await env.start(['--clean']);
-    const result = await db.query(QUERIES.usersTable);
+    const database = await testEnvironment.startServer(['--clean']);
+    const result = await database.query(QUERIES.usersTable);
     assert.deepEqual(result.rows, [{ users: null }]);
   });
 
   it('leaves existing files alone when the initial SQL file is missing', async (context) => {
-    const env = createTestEnvironment(context);
-    await env.start();
-    await env.stop();
-    const marker = join(env.dataDir, 'keep');
-    writeFileSync(marker, 'keep me');
+    const testEnvironment = createTestEnvironment(context);
+    await testEnvironment.startServer();
+    await testEnvironment.stopServer();
+    const preservedFilePath = join(testEnvironment.databaseDirectory, TEST_CONFIG.preservedFile);
+    writeFileSync(preservedFilePath, TEST_CONFIG.preservedContent);
 
-    await assert.rejects(env.start(['--clean', '--init', join(env.directory, 'missing.sql')]), /ENOENT/);
-    assert.equal(existsSync(marker), true);
+    const missingSqlFilePath = join(testEnvironment.temporaryDirectory, TEST_CONFIG.missingSqlFile);
+    await assert.rejects(
+      testEnvironment.startServer(['--clean', '--init', missingSqlFilePath]),
+      /ENOENT/,
+    );
+    assert.equal(existsSync(preservedFilePath), true);
   });
 
   it('rolls back invalid initial SQL and closes the database', async (context) => {
-    const env = createTestEnvironment(context);
-    const file = env.writeSql(INVALID_SQL);
-    await assert.rejects(env.start(['--init', file]), /syntax error/);
-    assert.equal(env.server.options.db.closed, true);
+    const testEnvironment = createTestEnvironment(context);
+    const sqlFilePath = testEnvironment.writeSqlFile(INVALID_SQL);
+    await assert.rejects(testEnvironment.startServer(['--init', sqlFilePath]), /syntax error/);
+    assert.equal(testEnvironment.socketServer.options.db.closed, true);
 
-    const db = await env.start();
-    const result = await db.query(QUERIES.brokenTable);
+    const database = await testEnvironment.startServer();
+    const result = await database.query(QUERIES.brokenTable);
     assert.deepEqual(result.rows, [{ broken: null }]);
   });
 
   for (const signal of TEST_SIGNALS) {
     it(`stops the server and closes the database on ${signal}`, async (context) => {
-      const env = createTestEnvironment(context);
-      const db = await env.start();
-      await env.stop(signal);
-      assert.equal(db.closed, true);
-      assert.equal(env.server.stopCalls, 1);
+      const testEnvironment = createTestEnvironment(context);
+      const database = await testEnvironment.startServer();
+      await testEnvironment.stopServer(signal);
+      assert.equal(database.closed, true);
+      assert.equal(testEnvironment.socketServer.stopCallCount, 1);
     });
   }
 
   it('rejects an invalid port before creating a database', async (context) => {
-    const env = createTestEnvironment(context);
-    await assert.rejects(env.start([], { PORT: 'invalid' }), /PORT must/);
-    assert.equal(existsSync(env.dataDir), false);
+    const testEnvironment = createTestEnvironment(context);
+    await assert.rejects(testEnvironment.startServer([], { PORT: 'invalid' }), /PORT must/);
+    assert.equal(existsSync(testEnvironment.databaseDirectory), false);
   });
 
   it('rejects an invalid connection limit before cleaning existing data', async (context) => {
-    const env = createTestEnvironment(context);
-    await env.start();
-    await env.stop();
-    const marker = join(env.dataDir, 'keep');
-    writeFileSync(marker, 'keep me');
+    const testEnvironment = createTestEnvironment(context);
+    await testEnvironment.startServer();
+    await testEnvironment.stopServer();
+    const preservedFilePath = join(testEnvironment.databaseDirectory, TEST_CONFIG.preservedFile);
+    writeFileSync(preservedFilePath, TEST_CONFIG.preservedContent);
 
-    await assert.rejects(env.start(['--clean'], { MAX_CONNECTIONS: '0' }), /MAX_CONNECTIONS must/);
-    assert.equal(existsSync(marker), true);
+    await assert.rejects(testEnvironment.startServer(['--clean'], { MAX_CONNECTIONS: '0' }), /MAX_CONNECTIONS must/);
+    assert.equal(existsSync(preservedFilePath), true);
   });
 });

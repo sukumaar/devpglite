@@ -24,7 +24,7 @@ import { ContainerSection } from 'lucode-starlight/components';
 
 ## A database for local development
 
-Need a database while you build or test your app? devpglite runs locally and lets your app connect with a PostgreSQL URL. You don’t need to install PostgreSQL or run Docker.
+Need a database while you build or test your app? devpglite runs locally and lets your app connect with a PostgreSQL URL. You don't need to install PostgreSQL or run Docker.
 
 <CardGrid>
   <Card title="Start with npm" icon="rocket">
@@ -60,7 +60,7 @@ npm install
 npm start
 ```
 
-You can also use `npm run db`. Once the package is published to npm, you’ll be able to run
+You can also use `npm run db`. Once the package is published to npm, you'll be able to run
 `npx devpglite start` without a global install.
 
 The server listens on `localhost:51214`. The installed CLI saves data in
@@ -129,7 +129,7 @@ npm start -- --init ./initial.sql
 ```
 
 The SQL runs once, in a single transaction, when the database is created.
-Restarting an existing database won’t run it again. Use plain SQL, without psql commands such as `\i` or your
+Restarting an existing database won't run it again. Use plain SQL, without psql commands such as `\i` or your
 own `BEGIN`/`COMMIT`. If loading fails, fix the file and restart with `--clean`.
 
 </ContainerSection>
