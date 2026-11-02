@@ -16,9 +16,9 @@
     "db": "npm start --",
     "prestart": "npm run build",
     "start": "node --env-file=.env.development dist/cli.js start",
-    "pretest": "npm run build && tsc --project tsconfig.test.json",
-    "test": "node --test --test-isolation=none .test-dist/test/*.test.js",
-    "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; for (const dir of ['dist', '.test-dist']) rmSync(dir, { recursive: true, force: true });\" && tsc",
+    "pretest": "npm run build && npm run typecheck",
+    "test": "vitest run",
+    "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\" && tsc",
     "typecheck": "tsc --noEmit --project tsconfig.test.json",
     "prepack": "npm run build"
   },
@@ -32,6 +32,7 @@
     "@types/node": "24.19.2",
     "@types/signale": "^1.4.7",
     "@types/yargs": "^17.0.35",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
   }
 }

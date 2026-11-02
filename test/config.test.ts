@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { readConfig } from '../src/config.js';
 import { INVALID_CONNECTION_LIMITS, TEST_CONFIG } from './constants.js';
 import { createTestEnvironment } from './helpers/environment.js';

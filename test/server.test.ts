@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { createTestEnvironment } from './helpers/environment.js';
 import { captureLogs } from './helpers/logging.js';
 import { INITIAL_SQL, INITIAL_USERS, INVALID_SQL, QUERIES, REPLACEMENT_SQL, REPLACEMENT_USERS, TEST_CONFIG, TEST_SIGNALS } from './constants.js';

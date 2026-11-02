@@ -207,8 +207,8 @@ npm run build
 
 Tests use real PGlite databases and replace the TCP listener so they can run
 where sockets are blocked. Each test gets its own temporary files and settings.
-Both source and tests are TypeScript. Build output goes in `dist/`; compiled
-tests go in `.test-dist/`. Both directories are ignored by Git.
+Both source and tests are TypeScript. Vitest runs tests directly. Build output
+goes in `dist/`, which is ignored by Git.
 
 </ContainerSection>
 

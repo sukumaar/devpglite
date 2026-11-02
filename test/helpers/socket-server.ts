@@ -1,7 +1,7 @@
 import type { PGLiteSocketServerOptions } from '@electric-sql/pglite-socket';
 
 // Use the real database without opening a TCP port in the test environment.
-// The export name matches the package replaced by the test module hook.
+// The export name matches the package replaced by the Vitest alias.
 export class PGLiteSocketServer extends EventTarget {
   static latestInstance: PGLiteSocketServer | undefined;
   readonly options: PGLiteSocketServerOptions;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { cleanDatabaseDirectory } from '../src/database.js';
 import { createTestEnvironment } from './helpers/environment.js';
 import { TEST_CONFIG } from './constants.js';

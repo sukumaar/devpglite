@@ -1,6 +1,5 @@
 .pglite-data/
 .devpglite/
-.test-dist/
 *.tgz
 
 # Operating system files

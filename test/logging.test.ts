@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { TEST_CLIENTS } from './constants.js';
 import { createTestEnvironment } from './helpers/environment.js';
 import { captureLogs } from './helpers/logging.js';

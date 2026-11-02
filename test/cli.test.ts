@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import packageMetadata from '../package.json' with { type: 'json' };
 import { createTestEnvironment } from './helpers/environment.js';
 import { HELP_ARGUMENTS, TEST_CONFIG } from './constants.js';

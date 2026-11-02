@@ -1,8 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { TestContext } from 'node:test';
+import type { TestContext } from 'vitest';
 import { PGLiteSocketServer as FakeSocketServer } from './socket-server.js';
 import { INITIAL_SQL, TEST_CONFIG, TEST_SIGNALS, type TestSignal } from '../constants.js';
 
@@ -14,19 +13,7 @@ class TestEnvironment {
   private readonly originalWorkingDirectory = process.cwd();
   private readonly originalEnvironmentVariables = { ...process.env };
   private readonly originalSignalListeners = new Set(TEST_SIGNALS.flatMap((signal) => process.listeners(signal)));
-  private readonly socketModuleHook: ReturnType<typeof registerHooks>;
-
-  // Replace only the TCP listener; database operations still run against PGlite.
   constructor() {
-    const fakeSocketModuleUrl = new URL('./socket-server.js', import.meta.url).href;
-    this.socketModuleHook = registerHooks({
-      resolve(moduleName, context, resolveNormally) {
-        if (moduleName === '@electric-sql/pglite-socket') {
-          return { shortCircuit: true, url: fakeSocketModuleUrl };
-        }
-        return resolveNormally(moduleName, context);
-      },
-    });
     FakeSocketServer.latestInstance = undefined;
     process.chdir(this.temporaryDirectory);
     process.env.PORT = '';
@@ -93,7 +80,6 @@ class TestEnvironment {
           if (!this.originalSignalListeners.has(listener)) process.removeListener(signal, listener);
         }
       }
-      this.socketModuleHook.deregister();
       process.chdir(this.originalWorkingDirectory);
       process.env = this.originalEnvironmentVariables;
       FakeSocketServer.latestInstance = undefined;
@@ -105,6 +91,6 @@ class TestEnvironment {
 // Keep setup local to each test and guarantee cleanup when it finishes.
 export function createTestEnvironment(context: TestContext) {
   const testEnvironment = new TestEnvironment();
-  context.after(() => testEnvironment.cleanup());
+  context.onTestFinished(() => testEnvironment.cleanup());
   return testEnvironment;
 }

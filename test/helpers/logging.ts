@@ -1,5 +1,5 @@
-import type { TestContext } from 'node:test';
 import { format } from 'node:util';
+import { type TestContext, vi } from 'vitest';
 import { logger } from '../../src/logger.js';
 import { LOG_LEVELS } from '../constants.js';
 
@@ -7,9 +7,10 @@ import { LOG_LEVELS } from '../constants.js';
 export function captureLogs(context: TestContext) {
   const logMessages: string[] = [];
   for (const level of LOG_LEVELS) {
-    context.mock.method(logger, level, (...args: unknown[]) => {
+    const spy = vi.spyOn(logger, level).mockImplementation((...args: unknown[]) => {
       logMessages.push(format(...args));
     });
+    context.onTestFinished(() => spy.mockRestore());
   }
   return logMessages;
 }
