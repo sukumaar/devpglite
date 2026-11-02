@@ -140,8 +140,22 @@ npm run typecheck
 npm run build
 ```
 
-Tests use real PGlite databases and replace the TCP listener so they can run
-where sockets are blocked. Each test gets its own temporary files and settings.
+### Testing mental model
+
+```text
+Vitest
+  -> supplies temporary environment and storage
+  -> starts application logic inside the test process
+  -> creates a real PGlite database
+  -> replaces only the TCP listener with a fake
+  -> verifies behavior, then restores all test state
+```
+
+Tests do not launch the CLI executable or a child process. Application code
+reads the test-controlled `process.env` because it runs inside Vitest's Node
+process. PGlite is real and persists into a temporary directory; only network
+transport is simulated.
+
 Both source and tests are TypeScript. Vitest runs tests directly. Build output
 goes in `dist/`, which is ignored by Git.
 

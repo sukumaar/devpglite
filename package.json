@@ -2,6 +2,29 @@
   "name": "devpglite",
   "version": "0.1.0",
   "description": "A minimal persistent PGlite PostgreSQL-compatible server for local development",
+  "keywords": [
+    "pglite",
+    "postgresql",
+    "postgres",
+    "local-development",
+    "embedded-database",
+    "typescript",
+    "nodejs",
+    "cli"
+  ],
+  "homepage": "https://github.com/sukumaar/devpglite#readme",
+  "bugs": {
+    "url": "https://github.com/sukumaar/devpglite/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sukumaar/devpglite.git"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "sukumaar",
+    "url": "https://github.com/sukumaar"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
