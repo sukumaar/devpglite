@@ -6,27 +6,27 @@ PostgreSQL or running Docker.
 
 Requires Node.js 24 or newer and npm.
 
-## Start
+## Installation
 
-From this repository:
+Run without installing globally:
 
 ```sh
-npm install
-npm start
+npx devpglite start
 ```
 
-`npm run db` does the same thing. Once published to npm, you can also run
-`npx devpglite start` without a global install.
+Or install globally and run the CLI:
 
-The server listens on `localhost:51214`. The installed CLI saves data in
-`~/.devpglite`, so it uses the same database from any folder. Source runs with
-`npm start` or `npm run db` use `./.devpglite` through `.env.development`.
-Press Ctrl+C to stop. SIGINT and SIGTERM stop the server and close the database.
+```sh
+npm install --global devpglite
+devpglite start
+```
 
-[Signale](https://github.com/klaudiosinani/signale) logs startup, the data path,
-cleanup, initial data loading, the connection URL, client connections, shutdown,
-and errors to stderr. Client logs show the remote address and port.
-SQL contents are not logged. Help and version output use stdout.
+## Usage
+
+### Connect to the database
+
+The server listens on `localhost:51214` and stores data in `~/.devpglite`.
+Press Ctrl+C to stop it. SIGINT and SIGTERM close the database cleanly.
 
 Set your app's database URL to:
 
@@ -42,7 +42,9 @@ psql 'postgresql://postgres:postgres@localhost:51214/postgres?sslmode=disable' -
 
 The result should be `postgres`.
 
-## Settings
+### Configure the server
+
+Set environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -50,71 +52,69 @@ The result should be `postgres`.
 | `PGLITE_DATA_DIR` | `~/.devpglite` | Where database files are saved |
 | `MAX_CONNECTIONS` | `10` | Maximum connected clients; a positive integer |
 
-Unset or empty values use the defaults. For source runs, `.env.development`
-provides a local path unless you set `PGLITE_DATA_DIR` yourself. Relative paths
-start from the directory where you run the command. The host is always `localhost`.
+Unset or empty values use defaults. Relative paths start from the current
+directory. The host is always `localhost`.
 
 ```sh
-PORT=5433 PGLITE_DATA_DIR=./local-data MAX_CONNECTIONS=20 npm start
+PORT=5433 PGLITE_DATA_DIR=./local-data MAX_CONNECTIONS=20 npx devpglite start
+```
+
+The matching CLI options override environment variables:
+
+```sh
+npx devpglite start --port 5433 --data-dir ./local-data --max-connections 20
 ```
 
 Change the port in your database URL to match. Add custom data directories to
 `.gitignore`.
 
-## Load initial data
+### Load initial data
 
-Use `--init` to create tables and load data from a SQL file before the server
-accepts connections. For example, save this as `initial.sql`:
-
-```sql
-CREATE TABLE users (id integer PRIMARY KEY, name text NOT NULL);
-INSERT INTO users VALUES (1, 'Alice');
-```
+Use `--init` to load SQL before the server accepts connections. The SQL runs in
+one transaction for a new database; existing databases skip it on restart.
 
 ```sh
-npm start -- --init ./initial.sql
+npx devpglite start --init ./initial.sql
 ```
 
-The SQL runs in one transaction when creating a database. Existing databases
-skip it on restart. Use plain SQL, without psql commands such as `\i` or your
-own `BEGIN`/`COMMIT`. If loading fails, fix the file and restart with `--clean`.
+Use plain SQL, without psql commands or your own `BEGIN`/`COMMIT`. If loading
+fails, fix the file and restart with `--clean`.
 
-## Start fresh
+### Start fresh
 
 ```sh
-npm start -- --clean
-npm start -- --clean --init ./initial.sql
+npx devpglite start --clean
+npx devpglite start --clean --init ./initial.sql
 ```
 
-`--clean` permanently deletes everything in `PGLITE_DATA_DIR`, including extra
-files, before creating a new database. By default, that means `~/.devpglite` for
-the installed CLI or `./.devpglite` for source runs. Stop any server using that
-directory first.
+`--clean` permanently deletes everything in the configured data directory,
+including extra files. Stop any server using that directory first. Cleanup
+refuses symlinks, protected directories, and nonempty directories without
+`PG_VERSION`. A missing SQL file fails before deletion.
 
-Cleanup refuses symlinks, the working directory, your home directory, their
-parents, and nonempty directories without `PG_VERSION`. Missing or empty data
-directories are allowed. A missing SQL file fails before any deletion.
+### Limits
 
-With the published CLI, use `devpglite start --clean --init ./initial.sql`.
-The extra `--` in npm commands passes the flags to devpglite.
+- Up to 10 clients connect by default. Keep combined app pool sizes within the
+  configured limit.
+- SSL is disabled. URL credentials are placeholders and do not protect access.
+- Use one server per data directory. This is for development and testing.
 
-## Limits
-
-- Up to 10 clients can connect by default, including apps, workers, and database
-  tools. Set `MAX_CONNECTIONS` to change the limit, and keep the combined pool
-  sizes within it. Extra connections may fail with `connection reset by peer`.
-- SSL is disabled. The URL credentials are placeholders and do not protect access.
-- Use one server per data directory. This project is intended for development
-  and testing.
-
-PGlite has one underlying database connection. The socket package shares it
-between clients and runs their queries sequentially. An open transaction can
-make other clients wait, so keep transactions short. This does not provide
-independent PostgreSQL sessions or parallel queries; use PostgreSQL itself for
-tests that depend on those behaviors. See the
-[socket package documentation](https://github.com/electric-sql/pglite/blob/main/packages/pglite-socket/README.md).
+PGlite has one underlying database connection shared by clients, so queries run
+sequentially. Keep transactions short. Use PostgreSQL for tests requiring
+independent sessions or parallel queries. See the [socket package
+documentation](https://github.com/electric-sql/pglite/blob/main/packages/pglite-socket/README.md).
 
 ## Development
+
+Clone the repository, then install dependencies and start the source version:
+
+```sh
+npm install
+npm start
+```
+
+
+### Project structure
 
 ```text
 src/

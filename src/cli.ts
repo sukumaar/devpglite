@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import yargs, { type Argv } from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -30,7 +31,7 @@ export function createCli(commandArguments = hideBin(process.argv)) {
 
 // Importing the parser in tests must not start the application.
 const entryFile = process.argv[1];
-const isRunningDirectly = entryFile && pathToFileURL(resolve(entryFile)).href === import.meta.url;
+const isRunningDirectly = entryFile && pathToFileURL(realpathSync(entryFile)).href === import.meta.url;
 if (isRunningDirectly) {
   try {
     await createCli().parseAsync();

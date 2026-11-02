@@ -76,6 +76,9 @@ Limits:
   sequence. Keep transactions short. Use PostgreSQL for tests requiring
   independent sessions or parallel queries.`;
 export const START_COMMAND_OPTIONS = {
+  port: { type: 'number', describe: 'TCP port (overrides PORT)' },
+  dataDir: { type: 'string', describe: 'Database directory (overrides PGLITE_DATA_DIR)' },
+  maxConnections: { type: 'number', describe: 'Client limit (overrides MAX_CONNECTIONS)' },
   clean: {
     type: 'boolean',
     default: false,
@@ -89,6 +92,9 @@ export const START_COMMAND_OPTIONS = {
 } as const satisfies Record<string, Options>;
 
 export interface StartOptions {
+  port?: number;
+  dataDir?: string;
+  maxConnections?: number;
   clean?: boolean;
   init?: string;
 }

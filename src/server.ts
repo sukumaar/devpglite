@@ -55,7 +55,7 @@ function registerShutdownHandlers(socketServer: PGLiteSocketServer, database: PG
 
 // Prepare storage and initial data before making the database available to clients.
 export async function startServer(options: StartOptions = {}) {
-  const { host, port, dataDir: databaseDirectory, maxConnections } = readConfig();
+  const { host, port, dataDir: databaseDirectory, maxConnections } = readConfig(options);
   logger.start('Starting devpglite...');
   logger.info('Data directory: %s', databaseDirectory);
   // Read before cleaning, so a missing SQL file cannot erase an existing database.
